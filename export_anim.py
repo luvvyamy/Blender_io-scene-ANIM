@@ -263,7 +263,7 @@ def anim_fcurve_elements(self, context, objs, sanitize_names, sanitize_spacesOnl
         return frames
 
     # Prepare object or bone to apply offset transforms for all channels of a data type (either location, rotation or scale), all at once
-    def prep_node(node, node_info, fcGroups, node_tForm_Space, apply_boneScale, action, bake_axis, **kwargs):
+    def prep_node(node, node_info, fcGroups, node_tForm_Space, apply_boneScale, channelbag, bake_axis, **kwargs):
         use_time_range = kwargs["use_time_range"]
         start_time = kwargs["start_time"]
         end_time = kwargs["end_time"]
@@ -309,7 +309,7 @@ def anim_fcurve_elements(self, context, objs, sanitize_names, sanitize_spacesOnl
                         # create missing curves for the property and insert basic keyframes
                         for j, val in enumerate(fc_identity):
                             if j not in fc_ids:
-                                fc = action.fcurves.new(data_path=fc_group[0].data_path, index=j)
+                                fc = channelbag.fcurves.new(data_path=fc_group[0].data_path, index=j)
                                 fc.keyframe_points.insert(frame=list(frames)[0], value=val)
                                 fc_group_new[j] = fc
                                 
@@ -355,19 +355,32 @@ def anim_fcurve_elements(self, context, objs, sanitize_names, sanitize_spacesOnl
             return -1
     
     for obj in objs:
-        try: obj.animation_data.action.fcurves
-        except: AttributeError(self.report({'ERROR'}, obj.name+" has no animation data."))
+        action_info = anim_utils.get_assigned_action_channelbag(obj)
+        if action_info is None:
+            self.report({'WARNING'}, obj.name + " has no assigned animation Action slot.")
+            continue
         else:
-            # Create an internal copy of the action to avoid destructive workflow
-            # TODO refactor this whole system to avoid making a copy altogether
-            action = obj.animation_data.action.copy()
-            kwargs_mod["action"] = action
+            source_action, source_slot, _source_channelbag = action_info
+            try:
+                action, _slot, channelbag = anim_utils.get_copied_action_channelbag(
+                    source_action,
+                    source_slot,
+                )
+            except RuntimeError as exc:
+                self.report({'ERROR'}, f"{obj.name}: {exc}")
+                continue
             is_mesh = True
+            temporary_obj = None
+            original_active_object = context.view_layer.objects.active
+            original_selected_objects = tuple(context.selected_objects)
 
             # Clone and convert the armature to different axis upon export
             if bake_axis:
                 obj_og = obj
-                obj = anim_utils.dupe_obj(context, obj)
+                temporary_obj = obj = anim_utils.dupe_obj(context, obj)
+                for selected_obj in context.selected_objects:
+                    selected_obj.select_set(False)
+                obj.select_set(True)
                 context.view_layer.objects.active = obj
                 anim_utils.convert_axes(obj, global_matrix, global_scale, bake_space_transform)
                 
@@ -377,7 +390,7 @@ def anim_fcurve_elements(self, context, objs, sanitize_names, sanitize_spacesOnl
                 # First off, sort all the bone's fcurves so their order aligns with bone hierarchy order.
                 # This is extremely important, since Maya doesn't map curves by attribute name but by hierarchy, top-to-bottom.
                 is_mesh = False
-                fcurves = sorted(action.fcurves, key=lambda fc: get_boneHierarchy_index(fc, obj))
+                fcurves = sorted(channelbag.fcurves, key=lambda fc: get_boneHierarchy_index(fc, obj))
 
                 if only_deform_bones:
                     eval_bones = [b.name for b in obj.data.bones if b.use_deform]
@@ -421,7 +434,7 @@ def anim_fcurve_elements(self, context, objs, sanitize_names, sanitize_spacesOnl
 
                 # write obj animation data
                 obj_info = get_node_info(obj)
-                prep_node(obj, obj_info, objFcurves, global_matrix, False, **kwargs_mod)
+                prep_node(obj, obj_info, objFcurves, global_matrix, False, channelbag, **kwargs_mod)
 
                 # write bone animation data
                 # fcBoneData structure: [Bone], [animated?], [list(ActionFCurves):  [location], [rotation_euler], [rotation_quaternion], [scale], [other custom data]]
@@ -438,7 +451,7 @@ def anim_fcurve_elements(self, context, objs, sanitize_names, sanitize_spacesOnl
                             pbone = obj.pose.bones[fcBoneData[0].name]
                             # Do matrix transformations only once per bone!
                             bone_tForm_parentSpace = anim_utils.bone_calculate_parentSpace(fcBoneData[0])
-                            prep_node(pbone, bone_info, fcBoneData[2], bone_tForm_parentSpace, True, **kwargs_mod)
+                            prep_node(pbone, bone_info, fcBoneData[2], bone_tForm_parentSpace, True, channelbag, **kwargs_mod)
 
                         else:
                             # if bone has no animation data, write a basic anim line
@@ -446,23 +459,27 @@ def anim_fcurve_elements(self, context, objs, sanitize_names, sanitize_spacesOnl
                             fcurveString.write("anim {} {} {} {};\n".format(node_name_final, row, child, 0))
                                 
             else:
-                for fc in action.fcurves:
+                for fc in channelbag.fcurves:
                     array_id = anim_utils.FCURVE_PATHS_NAME_TO_ID.get(fc.data_path, 4)
                     objFcurves[array_id].append(fc)
 
                 # write obj animation data
                 obj_info = get_node_info(obj)
-                prep_node(obj, obj_info, objFcurves, global_matrix, False, **kwargs_mod)
+                prep_node(obj, obj_info, objFcurves, global_matrix, False, channelbag, **kwargs_mod)
 
-            if bake_axis:
-                if is_mesh:
-                    bpy.data.meshes.remove(obj.data)
-                else:
-                    bpy.data.armatures.remove(obj.data)
-                context.view_layer.objects.active = obj = obj_og
-
-                # (OBSOLETE) Restore original Armature transforms for non-destructive exporting
-                # convert_Axes(obj, global_matrix, global_scale, True)
+            if temporary_obj is not None:
+                temporary_data = temporary_obj.data
+                bpy.data.objects.remove(temporary_obj, do_unlink=True)
+                if temporary_data.users == 0:
+                    if is_mesh:
+                        bpy.data.meshes.remove(temporary_data)
+                    else:
+                        bpy.data.armatures.remove(temporary_data)
+                for selected_obj in context.selected_objects:
+                    selected_obj.select_set(False)
+                for selected_obj in original_selected_objects:
+                    selected_obj.select_set(True)
+                context.view_layer.objects.active = original_active_object
 
             bpy.data.actions.remove(action)
 

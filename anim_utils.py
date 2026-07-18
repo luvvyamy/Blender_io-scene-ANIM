@@ -1,5 +1,46 @@
 import bpy, math
+from bpy_extras import anim_utils as bpy_anim_utils
 from mathutils import Matrix, Euler, Quaternion
+
+
+def create_action_channelbag(obj: bpy.types.Object, action_name: str):
+    """Create an Action assigned to *obj* and return its slot and channelbag."""
+    anim_data = obj.animation_data_create()
+    action = bpy.data.actions.new(action_name)
+    slot = action.slots.new(obj.id_type, obj.name)
+    channelbag = bpy_anim_utils.action_ensure_channelbag_for_slot(action, slot)
+    anim_data.action = action
+    anim_data.action_slot = slot
+    return action, slot, channelbag
+
+
+def get_assigned_action_channelbag(obj: bpy.types.Object):
+    """Return the Action, assigned slot, and channelbag for *obj*."""
+    anim_data = obj.animation_data
+    if anim_data is None or anim_data.action is None or anim_data.action_slot is None:
+        return None
+
+    channelbag = bpy_anim_utils.animdata_get_channelbag_for_assigned_slot(anim_data)
+    if channelbag is None:
+        return None
+
+    return anim_data.action, anim_data.action_slot, channelbag
+
+
+def get_copied_action_channelbag(action: bpy.types.Action, slot: bpy.types.ActionSlot):
+    """Copy *action* and return the copy with the slot corresponding to *slot*."""
+    action_copy = action.copy()
+    slot_copy = action_copy.slots.get(slot.identifier)
+    if slot_copy is None:
+        bpy.data.actions.remove(action_copy)
+        raise RuntimeError("Copied Action is missing the assigned Action slot")
+
+    channelbag = bpy_anim_utils.action_get_channelbag_for_slot(action_copy, slot_copy)
+    if channelbag is None:
+        bpy.data.actions.remove(action_copy)
+        raise RuntimeError("Copied Action slot is missing its channelbag")
+
+    return action_copy, slot_copy, channelbag
 
 UNITS = {
     "METERS": 1.0,  # Ref unit!

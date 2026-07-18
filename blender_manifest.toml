@@ -1,0 +1,15 @@
+schema_version = "1.0.0"
+
+id = "maya_anim_format"
+version = "1.4.0"
+name = "Maya ANIM Format"
+tagline = "Import and export Autodesk Maya ANIM animation files"
+maintainer = "Czarpos"
+type = "add-on"
+website = "https://github.com/PositionWizard/Blender_io-scene-ANIM"
+tags = ["Animation", "Import-Export"]
+blender_version_min = "5.2.0"
+license = ["SPDX:GPL-3.0-or-later"]
+
+[build]
+paths_exclude_pattern = ["__pycache__/", ".git/", "tests/"]

@@ -1,0 +1,19 @@
+animVersion 1.1;
+mayaVersion 2020;
+timeUnit film;
+linearUnit cm;
+angularUnit deg;
+startTime 1;
+endTime 3;
+anim translate.translateX translateX Cube 0 0 0;
+animData {
+  input time;
+  output linear;
+  weighted 1;
+  preInfinity constant;
+  postInfinity constant;
+  keys {
+    1 1 auto auto 1 0 0;
+    3 3 auto auto 1 0 0;
+  }
+}

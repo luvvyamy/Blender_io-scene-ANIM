@@ -513,8 +513,7 @@ def write_animation(op: bpy.types.Operator,
     if not animData:
         animData = obj.animation_data_create()
 
-    action = bpy.data.actions.new(filename)
-    animData.action = action
+    action, slot, channelbag = anim_utils.create_action_channelbag(obj, filename)
 
     pbone_names = []
     doObj = True
@@ -636,12 +635,16 @@ def write_animation(op: bpy.types.Operator,
                 fc_datapath, fc_group = fc_funcRes
                 # print(f"{anim_fc.node.name}, {anim_fc.node.property} [{anim_fc.node.array_index}]")
 
-                # handle an error in case it tries to insert an already existing fcurve   
-                try:    
-                    fc = action.fcurves.new(fc_datapath, index=anim_fc.node.array_index, action_group=fc_group)
-                except RuntimeError as e:
-                    # operator.report({'INFO'}, ("Couldn't add curve for %r (%s)") % (fc_datapath, e))
-                    fc = action.fcurves.find(data_path=fc_datapath, index=anim_fc.node.array_index)
+                fc = channelbag.fcurves.find(
+                    data_path=fc_datapath,
+                    index=anim_fc.node.array_index,
+                )
+                if fc is None:
+                    fc = channelbag.fcurves.new(
+                        fc_datapath,
+                        index=anim_fc.node.array_index,
+                        group_name=fc_group,
+                    )
 
                 fc = setup_fcurve(fc, anim_fc)
                 write_keyframes(fc, anim_fc, anim_offset, apply_unit_linear, axis_transform, **settings)

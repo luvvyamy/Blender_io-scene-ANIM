@@ -1,41 +1,69 @@
-# About
-Maya's ANIM import/export plugin v1.3.0 for Blender 3.6
+# ✨ Maya ANIM Format for Blender 5.2, bestie ✨
 
-Source: [ANIM file format | Maya 2020 - Autodesk Knowledge Network](https://help.autodesk.com/view/MAYAUL/2020/ENU/?guid=GUID-87541258-2463-497A-A3D7-3DEA4C852644)
+Maya's `.anim` import/export extension for Blender, now serving Blender 5.2 energy 💅👑
 
-# Installation
-1. Download a Release zip
-2. Go to Preferences window -> Add-ons -> Install...
-3. Select the zip file
-4. Enjoy
+This extension imports and exports Autodesk Maya animation files, because apparently animation data needed yet another groupchat and we were NOT going to let it win 😩🍵
 
-# Usage
-File -> Import -> Maya Animation (.anim)
-File -> Export -> Maya Animation (.anim)
+Source format documentation: [ANIM file format | Maya 2020](https://help.autodesk.com/view/MAYAUL/2020/ENU/?guid=GUID-87541258-2463-497A-A3D7-3DEA4C852644)
 
-Works for objects and armature bones.
+## ⚠️ warning, the tea is IMPORTANT ⚠️
 
-Imported animations are converted to current bone rotation mode. "Axis Angle" mode is not supported.
+This is a **quick port made with Codex**, bestie, and it is **untested on an actual Blender 5.2 installation** 🚨💀
 
-Exported rotations are always converted to Eulers with 'XYZ' order. This also means Quaternion rotation curves are prone to gimbal lock due to conversion.
-Gimbal lock may also occur in other software if animation was exported with different axes.
+The port was locally validated with **Blender 5.1.2** only, so Blender 5.2 is the intended target but NOT a verified runtime in this repository. Please save your `.blend` file before importing or exporting, because we are not pretending this rushed little diva has had a full production shakedown 💅🙏🏼
 
-## Features:
-- Export and Import raw animation curves as presented by Blender ("Transform" OFF)
-- Animation axis conversion between differently oriented world directions and bone transformation of a parent-space instead of Blender's rest-space ("Transform" ON)
-- Control the bone scale for exported and imported animations, in case top hierarchy node is in different scale
-- Baking world tranfsorm data to exported and imorted object and bone animations
-- Presets!
+## installation, because the extension is being dramatic ✨
 
-### Import Features:
-- Support for handling multiple files
-- Offset the imported animation on the timeline
-- Match framerate, Units and Time Range of Blender scene to the animation
-- Limit import to selected bones
+1. Download or build the release ZIP containing `blender_manifest.toml`.
+2. In Blender, open **Edit → Preferences → Get Extensions**.
+3. Open the dropdown menu and choose **Install from Disk…**.
+4. Select the ZIP and enable **Maya ANIM Format**, periodt 👑
 
-### Export Features:
-- Option to limit the range of frames for exported animation instead of using all keyframes from timeline
-- Option to export animation only for Deform bones instead of all that have animation data
-- Name conversion for exported curves to either avoid spaces (necessary for this file format) or spaces and special characters - both can be performed for either export only or blender scene as well.
+To build the extension ZIP from this repository:
 
-*This plugin contains content adapted from the Autodesk® Maya® Help, available under a Creative Commons Attribution-NonCommercial-Share Alike license. Copyright © Autodesk, Inc.*
+```sh
+blender --factory-startup --command extension build --source-dir . --output-dir /tmp
+```
+
+## usage, let the animation enter the chat 💬
+
+Import:
+
+```text
+File → Import → Maya Animation (.anim)
+```
+
+Export:
+
+```text
+File → Export → Maya Animation (.anim)
+```
+
+The extension supports animation on objects and armature bones. In Blender 5, Actions can contain animation for multiple targets, so export uses the Action slot assigned to each object and does not intentionally mix another object's curves into the file. Look at Blender's assigned Action slot before exporting, bestie, because the slot is literally the chat where the animation lives 😩🍵
+
+## features, serving actual functionality ✨
+
+- Import and export raw animation curves as presented by Blender when **Transform** is disabled.
+- Convert animation axes and bone parent-space transforms when **Transform** is enabled.
+- Control bone scale for imported and exported animations when the top hierarchy node uses a different scale.
+- Bake world-transform data into exported and imported object and bone animation.
+- Use presets, because clicking the same settings repeatedly is NOT character development 💅
+- Import multiple files.
+- Offset imported animation on the timeline.
+- Match the Blender scene's framerate, units, and time range to the animation.
+- Limit import to selected bones.
+- Limit export to a chosen frame range instead of exporting every keyframe from the timeline.
+- Export only deform bones when requested.
+- Convert exported curve names to avoid spaces, or to avoid spaces and special characters.
+
+## rotation limitations, because somebody had to bring the plot twist 😭
+
+- Imported rotations are converted to the target object's or bone's current rotation mode.
+- **Axis Angle** rotation mode is not supported for import.
+- Exported rotations are converted to **XYZ Euler** order.
+- Quaternion rotation curves can therefore experience gimbal lock during export.
+- Other software may also produce gimbal lock if the animation was exported with different axes.
+
+## the moral of the story, gurl 💅
+
+Use this for getting game-modding animation data into Blender 5.x, but keep the warning in the groupchat: this was a fast Codex port, Blender 5.2 itself was not tested, and Blender 5.1.2 is the only local validation target. Save backups, test on a copy, and report anything that starts acting possessed 👻✨
